@@ -3,48 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>페이지 이동 중...</title>
-  <script>
-    const targetUrl = "https://player.sauceflex.com/broadcast/lkeland-dce520921eb1410f811868249fcd1bc2";
-    const cleanUrl = targetUrl.replace(/https?:\/\//, "");
-    const userAgent = navigator.userAgent.toLowerCase();
-
-    // 1. 안드로이드: 크롬 인텐트로 강제 외부 브라우저 실행
-    if (/android/.test(userAgent)) {
-      location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
-    } 
-    // 2. iOS(아이폰/아이패드): 사파리 전용 스킴 및 fallback 처리
-    else if (/iphone|ipad|ipod/.test(userAgent)) {
-      // 인스타그램 인앱 브라우저인 경우 사파리로 오픈 유도
-      if (/instagram/.test(userAgent)) {
-        location.href = `x-safari-${targetUrl}`;
-        setTimeout(() => {
-          location.href = targetUrl;
-        }, 500);
-      } else {
-        location.href = targetUrl;
-      }
-    } 
-    // 3. 그 외 (PC 브라우저 등): 바로 이동
-    else {
-      location.href = targetUrl;
-    }
-  </script>
+  <title>링크 연결</title>
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
-      margin: 0;
-      text-align: center;
-      background: #fafafa;
-      color: #333;
+      background: #f8f9fa;
+      color: #212529;
     }
-    .btn {
+    .card {
+      background: #ffffff;
+      padding: 30px 24px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+    h2 { margin-top: 0; font-size: 20px; }
+    input[type="url"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #ced4da;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    input[type="url"]:focus { border-color: #0095f6; }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #0095f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #0077c5; }
+    .result-box {
       margin-top: 20px;
+      padding: 15px;
+      background: #e7f5ff;
+      border-radius: 8px;
+      display: none;
+      text-align: left;
+    }
+    .result-box p { margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #1971c2; }
+    .result-box textarea {
+      width: 100%;
+      height: 60px;
+      resize: none;
+      padding: 8px;
+      font-size: 12px;
+      border: 1px solid #a5d8ff;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .btn-action {
+      display: inline-block;
+      margin-top: 15px;
       padding: 12px 24px;
       background-color: #0095f6;
       color: white;
@@ -55,8 +82,86 @@
   </style>
 </head>
 <body>
-  <p>외부 브라우저로 이동 중입니다...</p>
-  <p>화면이 멈춰있다면 아래 버튼을 눌러주세요.</p>
-  <a class="btn" href="https://player.sauceflex.com/broadcast/lkeland-dce520921eb1410f811868249fcd1bc2" target="_blank" rel="noopener noreferrer">직접 이동하기</a>
+
+  <!-- 1. URL 입력 및 변환 도구 화면 -->
+  <div class="card" id="generator-view" style="display: none;">
+    <h2>🔗 인스타 탈출 링크 생성기</h2>
+    <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
+      연결할 라이브/웹페이지 주소를 입력하면 자동으로 인앱 브라우저 탈출 링크를 만듭니다.
+    </p>
+    <input type="url" id="targetInput" placeholder="https://player.sauceflex.com/..." />
+    <button onclick="generateLink()">변환 링크 만들기</button>
+
+    <div class="result-box" id="resultBox">
+      <p>생성된 인스타그램용 링크:</p>
+      <textarea id="generatedUrl" readonly></textarea>
+      <button onclick="copyLink()" style="margin-top: 8px; background-color: #1971c2;">링크 복사하기</button>
+    </div>
+  </div>
+
+  <!-- 2. 인스타 방문자 리다이렉트 화면 -->
+  <div class="card" id="redirect-view" style="display: none;">
+    <h2>외부 브라우저로 이동 중...</h2>
+    <p style="color: #666; font-size: 14px;">화면이 멈춰있다면 아래 버튼을 눌러주세요.</p>
+    <a class="btn-action" id="manualBtn" href="#" target="_blank" rel="noopener noreferrer">직접 이동하기</a>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUrl = urlParams.get('url');
+
+    // [상황 1] ?url= 파라미터가 있는 경우 -> 방문자 리다이렉트 처리
+    if (targetUrl) {
+      document.getElementById('redirect-view').style.display = 'block';
+      document.getElementById('manualBtn').href = targetUrl;
+
+      const cleanUrl = targetUrl.replace(/https?:\/\//, "");
+      const userAgent = navigator.userAgent.toLowerCase();
+
+      // 안드로이드 크롬 인텐트 탈출
+      if (/android/.test(userAgent)) {
+        location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+      } 
+      // iOS 사파리 탈출 시도
+      else if (/iphone|ipad|ipod/.test(userAgent)) {
+        if (/instagram/.test(userAgent)) {
+          location.href = `x-safari-${targetUrl}`;
+          setTimeout(() => { location.href = targetUrl; }, 500);
+        } else {
+          location.href = targetUrl;
+        }
+      } 
+      // 기타 브라우저
+      else {
+        location.href = targetUrl;
+      }
+    } 
+    // [상황 2] 파라미터 없이 주소만 들어온 경우 -> 링크 생성기 화면 표시
+    else {
+      document.getElementById('generator-view').style.display = 'block';
+    }
+
+    // 링크 생성 함수
+    function generateLink() {
+      const input = document.getElementById('targetInput').value.trim();
+      if (!input || !input.startsWith('http')) {
+        alert('올바른 URL(https://...)을 입력해주세요.');
+        return;
+      }
+      const baseUrl = window.location.origin + window.location.pathname;
+      const finalLink = `${baseUrl}?url=${encodeURIComponent(input)}`;
+
+      document.getElementById('generatedUrl').value = finalLink;
+      document.getElementById('resultBox').style.display = 'block';
+    }
+
+    // 복사 함수
+    function copyLink() {
+      const copyText = document.getElementById('generatedUrl');
+      copyText.select();
+      navigator.clipboard.writeText(copyText.value);
+      alert('변환된 링크가 복사되었습니다! 인스타그램에 붙여넣으세요.');
+    }
+  </script>
 </body>
 </html>
