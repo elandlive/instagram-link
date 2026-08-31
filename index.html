@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>페이지 이동 중...</title>
+  <script>
+    const targetUrl = "https://player.sauceflex.com/broadcast/lkeland-dce520921eb1410f811868249fcd1bc2";
+    const cleanUrl = targetUrl.replace(/https?:\/\//, "");
+    const userAgent = navigator.userAgent.toLowerCase();
+
+    // 1. 안드로이드: 크롬 인텐트로 강제 외부 브라우저 실행
+    if (/android/.test(userAgent)) {
+      location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+    } 
+    // 2. iOS(아이폰/아이패드): 사파리 전용 스킴 및 fallback 처리
+    else if (/iphone|ipad|ipod/.test(userAgent)) {
+      // 인스타그램 인앱 브라우저인 경우 사파리로 오픈 유도
+      if (/instagram/.test(userAgent)) {
+        location.href = `x-safari-${targetUrl}`;
+        setTimeout(() => {
+          location.href = targetUrl;
+        }, 500);
+      } else {
+        location.href = targetUrl;
+      }
+    } 
+    // 3. 그 외 (PC 브라우저 등): 바로 이동
+    else {
+      location.href = targetUrl;
+    }
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+      background: #fafafa;
+      color: #333;
+    }
+    .btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      background-color: #0095f6;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <p>외부 브라우저로 이동 중입니다...</p>
+  <p>화면이 멈춰있다면 아래 버튼을 눌러주세요.</p>
+  <a class="btn" href="https://player.sauceflex.com/broadcast/lkeland-dce520921eb1410f811868249fcd1bc2" target="_blank" rel="noopener noreferrer">직접 이동하기</a>
+</body>
+</html>
